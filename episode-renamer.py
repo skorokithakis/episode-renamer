@@ -11,6 +11,7 @@ import os
 import sys
 import subprocess
 import random
+from version import *
 
 def parse_imdb_page(page):
     episode_names = {}
@@ -53,7 +54,7 @@ def rename_files(episode_names, preview=False, use_ap=False):
                 os.rename(filename, new_filename)
 
 def main():
-    parser = optparse.OptionParser(usage="%prog [options] <IMDB id>", version="Episode rename 0.1\nThis program is released under the GNU GPL.")
+    parser = optparse.OptionParser(usage="%prog [options] <IMDB id>", version="Episode renamer %s\nThis program is released under the GNU GPL." % VERSION)
     parser.add_option("-p", "--preview", dest="preview", action="store_true", help="don't actually rename anything")
     parser.add_option("-a", "--use-atomic-parsley", dest="use_atomic_parsley", action="store_true", help="use AtomicParsley to fill in the files' tags")
     parser.set_defaults(preview=False)

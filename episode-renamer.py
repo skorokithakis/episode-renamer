@@ -11,15 +11,39 @@ import os
 import sys
 import subprocess
 import random
+import htmlentitydefs
 from version import *
 
+def unescape(text):
+    """Convert HTML entities to their Unicode counterparts."""
+    def fixup(match):
+        text = match.group(0)
+        if text.startswith("&#"):
+            # character reference
+            try:
+                if text.startswith("&#x"):
+                    return unichr(int(text[3:-1], 16))
+                else:
+                    return unichr(int(text[2:-1]))
+            except ValueError:
+                pass
+        else:
+            # named entity
+            try:
+                text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
+            except KeyError:
+                pass
+        return text # leave as is
+    return re.sub("&#?\w+;", fixup, text)
+
 def parse_imdb_page(page):
+    """Parse an IMDB page, entering the episode names in a dictionary."""
     episode_names = {}
     page = page.replace("\n", "")
     episode_names["title"] = re.search("<b>&#34;(.*?)&#34; \(.*?\)</b>", page).groups()[0]
     episodes = re.findall("""<td align="right" bgcolor="#eeeeee">(?P<season>\d+)\.(?P<episode>\d+)&#160;</td> *<td><a .*?>(.*?)</a></td>""", page)
     for season, episode, name in episodes:
-        episode_names[(int(season), int(episode))] = name
+        episode_names[(int(season), int(episode))] = unescape(name)
     return episode_names
 
 def rename_files(episode_names, preview=False, use_ap=False):
@@ -40,7 +64,7 @@ def rename_files(episode_names, preview=False, use_ap=False):
         except KeyError:
             print 'Could not rename "%s"' % filename
         new_filename = re.sub("[\?\[\]\/\\\=\+\<\>\:\\;\",\*\|]", "", new_filename)
-        print """Renaming "%s" to "%s"...""" % (filename, new_filename)
+        print u"""Renaming "%s" to "%s"...""" % (repr(filename), repr(new_filename))
         if not preview:
             if use_ap:
                 # The temp_filename shenanigans are necessary because AP sometimes

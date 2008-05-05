@@ -60,11 +60,12 @@ def rename_files(episode_names, preview=False, use_ap=False):
         extension = match_dict["extension"]
 
         try:
-            new_filename = "%s - S%sE%s - %s.%s" % (episode_names["title"], str(series).zfill(2), str(episode).zfill(2), episode_names[(series, episode)], extension)
+            new_filename = u"%s - S%sE%s - %s.%s" % (episode_names["title"], str(series).zfill(2), str(episode).zfill(2), episode_names[(series, episode)], extension)
         except KeyError:
             print 'Could not rename "%s"' % filename
+            continue
         new_filename = re.sub("[\?\[\]\/\\\=\+\<\>\:\\;\",\*\|]", "", new_filename)
-        print u"""Renaming "%s" to "%s"...""" % (repr(filename), repr(new_filename))
+        print u"""Renaming "%s" to "%s"...""" % (filename.encode("utf8", "replace"), new_filename.encode("utf8", "replace"))
         if not preview:
             if use_ap:
                 # The temp_filename shenanigans are necessary because AP sometimes

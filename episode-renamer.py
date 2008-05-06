@@ -12,47 +12,50 @@ import sys
 import subprocess
 import random
 import htmlentitydefs
+from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
 from version import *
 
-def unescape(text):
-    """Convert HTML entities to their Unicode counterparts."""
-    def fixup(match):
-        text = match.group(0)
-        if text.startswith("&#"):
-            # character reference
-            try:
-                if text.startswith("&#x"):
-                    return unichr(int(text[3:-1], 16))
-                else:
-                    return unichr(int(text[2:-1]))
-            except ValueError:
-                pass
-        else:
-            # named entity
-            try:
-                text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
-            except KeyError:
-                pass
-        return text # leave as is
-    return re.sub("&#?\w+;", fixup, text)
+SITES = [
+    {"url": "http://epguides.com/%s/",
+     "episode_re": "\d+. +(?P<season>\d+) *\- *(?P<episode>\d+) +\d+ +[A-Za-z]+ +\d+ +<a target.*?>(?P<name>.*?)</a>",
+     "title_re": """<h1><a href="http://.*?">(.*?)</a></h1>""",
+     },
+    {"url": "http://www.imdb.com/title/%s/epdate",
+     "episode_re": """<td align="right" bgcolor="#eeeeee">(?P<season>\d+)\.(?P<episode>\d+).?</td> *<td><a .*?>(?P<name>.*?)</a></td>""",
+     "title_re": "<title>\"?(.*?)\"? *?\(.*?\)</title>",
+    },
+        ]
 
-def parse_imdb_page(page):
-    """Parse an IMDB page, entering the episode names in a dictionary."""
+def parse_page(page, site):
+    """Parse a page, entering the episode names in a dictionary."""
+    soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
     episode_names = {}
-    page = page.replace("\n", "")
-    episode_names["title"] = re.search("<b>&#34;(.*?)&#34; \(.*?\)</b>", page).groups()[0]
-    episodes = re.findall("""<td align="right" bgcolor="#eeeeee">(?P<season>\d+)\.(?P<episode>\d+)&#160;</td> *<td><a .*?>(.*?)</a></td>""", page)
+    page = unicode(soup).replace("\n", "")
+    try:
+        episode_names["title"] = re.search(site["title_re"], page).groups()[0]
+    except AttributeError:
+        print "Could not find show title, cannot continue."
+        sys.exit()
+    episodes = re.findall(site["episode_re"], page)
     for season, episode, name in episodes:
-        episode_names[(int(season), int(episode))] = unescape(name)
+        episode_names[(int(season), int(episode))] = name
     return episode_names
 
 def rename_files(episode_names, preview=False, use_ap=False):
-    series_parser = re.compile("^.*s *(?P<series>\d+) *e *(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE)
+    series_parser = [
+        re.compile("^.*?s *?(?P<series>\d+) *?e *?(?P<episode>\d+).*?\.(?P<extension>.*?)$", re.IGNORECASE),
+        re.compile("^.*?(?P<series>\d+)x(?P<episode>\d+).*?\.(?P<extension>.*?)$", re.IGNORECASE),
+        ]
+    title = episode_names["title"]
     for filename in os.listdir("."):
-        matches = series_parser.search(filename)
-        try:
-            match_dict = matches.groupdict()
-        except AttributeError:
+        for parser in series_parser:
+            matches = parser.search(filename)
+            try:
+                match_dict = matches.groupdict()
+                break
+            except AttributeError:
+                continue
+        else:
             continue
 
         series = int(match_dict["series"])
@@ -60,12 +63,13 @@ def rename_files(episode_names, preview=False, use_ap=False):
         extension = match_dict["extension"]
 
         try:
-            new_filename = u"%s - S%sE%s - %s.%s" % (episode_names["title"], str(series).zfill(2), str(episode).zfill(2), episode_names[(series, episode)], extension)
+            print `episode_names[(series, episode)].encode("ascii", "replace")`
+            new_filename = u"%s - S%02dE%02d - %s.%s" % (title, series, episode, episode_names[(series, episode)], extension)
         except KeyError:
             print 'Could not rename "%s"' % filename
             continue
-        new_filename = re.sub("[\?\[\]\/\\\=\+\<\>\:\\;\",\*\|]", "", new_filename)
-        print u"""Renaming "%s" to "%s"...""" % (filename.encode("utf8", "replace"), new_filename.encode("utf8", "replace"))
+        new_filename = re.sub("[\\\/\:\*\"\?\<\>\|]", "", new_filename)
+        print "Renaming \"%s\" to \"%s\"..." % (filename, new_filename.encode("ascii", "replace"))
         if not preview:
             if use_ap:
                 # The temp_filename shenanigans are necessary because AP sometimes
@@ -80,6 +84,7 @@ def rename_files(episode_names, preview=False, use_ap=False):
 
 def main():
     parser = optparse.OptionParser(usage="%prog [options] <IMDB id>", version="Episode renamer %s\nThis program is released under the GNU GPL." % VERSION)
+    parser.add_option("-e", "--use-epguides", dest="use_epguides", action="store_true", help="use epguides.com instead of IMDB")
     parser.add_option("-p", "--preview", dest="preview", action="store_true", help="don't actually rename anything")
     parser.add_option("-a", "--use-atomic-parsley", dest="use_atomic_parsley", action="store_true", help="use AtomicParsley to fill in the files' tags")
     parser.set_defaults(preview=False)
@@ -89,7 +94,12 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    page_url = "http://www.imdb.com/title/%s/epdate" % arguments[0]
+    if options.use_epguides:
+        site = SITES[0]
+    else:
+        site = SITES[1]
+
+    page_url = site["url"] % arguments[0]
 
     try:
         page = urllib2.urlopen(page_url).read()
@@ -97,7 +107,7 @@ def main():
         print "An HTTP error occurred, HTTP code %s." % error.code
         sys.exit()
 
-    episode_names = parse_imdb_page(page)
+    episode_names = parse_page(page, site)
     rename_files(episode_names, options.preview, options.use_atomic_parsley)
     print "Done."
 

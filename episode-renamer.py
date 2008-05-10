@@ -18,7 +18,7 @@ from version import *
 
 SITES = [
     {"url": "http://epguides.com/%s/",
-     "episode_re": "\d+. +(?P<season>\d+) *\- *(?P<episode>\d+) +(?:\d+|) +\d+ +[A-Za-z]+ +\d+ +<a target.*?>(?P<name>.*?)</a>",
+     "episode_re": "\d+. +(?P<season>\d+) *\- *(?P<episode>\d+) +(?:[\d\w]+|) +\d+ +[A-Za-z]+ +\d+ +<a target.*?>(?P<name>.*?)</a>",
      "title_re": """<h1><a href="http://.*?">(.*?)</a></h1>""",
      "domain": "epguides.com",
      "urlparser": "epguides.com\/(.*?)\/",

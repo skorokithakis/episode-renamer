@@ -33,13 +33,16 @@ SITES = [
 
 def search_show(name, site):
     """Search Google for the page best matching the given show name."""
-    google_url = "http://www.google.com/xhtml/search?q=site%%3A%s+%s" % (site["domain"], urllib.quote(name))
+    google_url = "http://www.google.com/search?q=site%%3A%s+%s" % (site["domain"], urllib.quote(name))
 
     # Bastard Google...
     request = urllib2.Request(google_url)
-    request.add_header("User-Agent", "User-Agent: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.8.1.4) Gecko/20070515 Firefox/2.0.0.4")
+    request.add_header("User-Agent", "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.8.1.4) Gecko/20070515 Firefox/2.0.0.4")
     page = urllib2.urlopen(request).read()
-    result = re.findall("<span class=\"green\">(.*?)</span>", page)[0]
+
+    soup = BeautifulSoup(page)
+    result = soup.find("a", "l")["href"]
+    print result
     show_id = re.search(site["urlparser"], result).group(1)
     return show_id
 
@@ -94,9 +97,15 @@ def rename_files(episode_names, preview=False, use_ap=False):
                 proc = subprocess.Popen(("AtomicParsley", filename, "-o", temp_filename, "--TVShowName", episode_names["title"], "--stik", "TV Show", "--TVSeasonNum", str(series), "--TVEpisodeNum", str(episode), "--TVEpisode", episode_names[(series, episode)], "--title", episode_names[(series, episode)]))
                 proc.wait()
                 os.remove(filename)
-                os.rename(temp_filename, new_filename)
+                try:
+                    os.rename(temp_filename, new_filename)
+                except:
+                    print "There was an error while renaming the file."
             else:
-                os.rename(filename, new_filename)
+                try:
+                    os.rename(filename, new_filename)
+                except:
+                    print "There was an error while renaming the file."
 
 def main():
     parser = optparse.OptionParser(usage="%prog [options] <show id from the URL>", version="Episode renamer %s\nThis program is released under the GNU GPL." % VERSION)

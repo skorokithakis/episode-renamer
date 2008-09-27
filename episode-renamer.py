@@ -86,6 +86,7 @@ def rename_files(show, file_mask, preview=False, use_ap=False):
     series_parser = [
         re.compile("^.*?s *(?P<series>\d+) *e *(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE),
         re.compile("^.*?(?P<series>\d+)x(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE),
+        re.compile("^(?:.*?\D|)(?P<series>\d{1,2})(?P<episode>\d{2})(?:\D.*|)\.(?P<extension>.*?)$", re.IGNORECASE),
         ]
     for filename in os.listdir("."):
         for parser in series_parser:
@@ -107,9 +108,8 @@ def rename_files(show, file_mask, preview=False, use_ap=False):
                            "episode_num": episode,
                            "extension": extension}
 
-        info_dictionary.update(show.episodes[(series, episode)])
-
         try:
+            info_dictionary.update(show.episodes[(series, episode)])
             new_filename = file_mask % info_dictionary
         except KeyError:
             print 'Episode name for  "%s" not found.' % filename

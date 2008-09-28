@@ -13,6 +13,8 @@ import sys
 import subprocess
 import random
 import htmlentitydefs
+import md5
+
 from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
 from version import *
 
@@ -20,15 +22,25 @@ from version import *
 class Show:
     def __init__(self, title="", rating=0):
         self.title = title
+        self.attributes = {}
         self.episodes = {}
 
-def parse_imdb(page):
+
+def parse_imdb(page, options):
     """Parse an IMDB page."""
     # Remove &#160; (nbsp) entities.
     page = page.replace("&#160;", "")
     soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
-    title = re.search("\"?(.*?)\"? *?\(.*?\)", soup.title.string).group(1)
+    matches = re.search("\"?(.*?)\"? *?\((.*?)\)", soup.title.string)
+    title = matches.group(1)
+    try:
+        year = matches.group(2)
+    except IndexError:
+        year = None
     show = Show(title)
+    if options.use_atomic_parsley:
+        show.attributes["artwork"] = urllib2.urlopen(soup.find("a", attrs={"name": "poster"}).findNext("img")["src"]).read()
+    show.attributes["year"] = year
 
     table = soup.find("h4").findNext("table")
     for tr in table.findChildren("tr")[1:]:
@@ -39,7 +51,7 @@ def parse_imdb(page):
 
     return show
 
-def parse_epguides(page):
+def parse_epguides(page, options):
     """Parse an epguides page."""
     soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
     page = unicode(soup).replace("\n", "")
@@ -121,9 +133,41 @@ def rename_files(show, file_mask, preview=False, use_ap=False):
                 # The temp_filename shenanigans are necessary because AP sometimes
                 # chokes if it's set to overwrite the file.
                 temp_filename = filename + str(random.randint(10000, 99999))
-                proc = subprocess.Popen(("AtomicParsley", filename, "-o", temp_filename, "--TVShowName", show.title, "--stik", "TV Show", "--TVSeasonNum", str(series), "--TVEpisodeNum", str(episode), "--TVEpisode", show.episodes[(series, episode)]["title"], "--title", show.episodes[(series, episode)]["title"]))
+                arguments = ["AtomicParsley",
+                             filename,
+                             "-o", temp_filename,
+                             "--TVShowName", show.title,
+                             "--stik", "TV Show",
+                             "--TVSeasonNum", str(series),
+                             "--TVEpisodeNum", str(episode),
+                             "--TVEpisode", show.episodes[(series, episode)]["title"],
+                             "--title", show.episodes[(series, episode)]["title"]]
+                if "year" in show.episodes[(series, episode)]:
+                    arguments.extend(["--year", show.episodes[(series, episode)]["year"]])
+                elif "year" in show.attributes:
+                    arguments.extend(["--year", show.attributes["year"]])
+
+                artwork_file = None
+                if "artwork" in show.episodes[(series, episode)]:
+                    artwork_filename = md5.md5(str(random.randint(10000, 100000))).hexdigest()
+                    artwork_file = open(artwork_filename, "wb")
+                    artwork_file.write(show.episodes[(series, episode)]["artwork"])
+                    artwork_file.close()
+                    arguments.extend(["--artwork", "REMOVE_ALL", "--artwork", artwork_filename])
+                elif "artwork" in show.attributes:
+                    artwork_filename = md5.md5(str(random.randint(10000, 100000))).hexdigest()
+                    artwork_file = open(artwork_filename, "wb")
+                    artwork_file.write(show.attributes["artwork"])
+                    artwork_file.close()
+                    arguments.extend(["--artwork", "REMOVE_ALL", "--artwork", artwork_filename])
+
+                proc = subprocess.Popen(tuple(arguments))
                 proc.wait()
                 os.remove(filename)
+
+                if artwork_file:
+                    os.remove(artwork_filename)
+
                 try:
                     os.rename(temp_filename, new_filename)
                 except:
@@ -189,7 +233,7 @@ def main():
         print "An HTTP error occurred, HTTP code %s." % error.code
         sys.exit()
 
-    show = site["parser"](page)
+    show = site["parser"](page, options)
     rename_files(show, options.mask, options.preview, options.use_atomic_parsley)
     print "Done."
 

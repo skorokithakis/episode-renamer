@@ -31,7 +31,7 @@ def parse_imdb(page, options):
     # Remove &#160; (nbsp) entities.
     page = page.replace("&#160;", "")
     soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
-    matches = re.search("\"?(.*?)\"? *?\((.*?)\)", soup.title.string)
+    matches = re.search("(?:&#x22;|)(.*?)(?:&#x22;|) *?\((.*?)\)", soup.title.string)
     title = matches.group(1)
     try:
         year = matches.group(2)

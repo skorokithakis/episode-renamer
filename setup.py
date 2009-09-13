@@ -12,6 +12,7 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Programming Language :: Python'
     ],
+    install_requires=["BeautifulSoup==3.0.7a"],
     entry_points = {
         'console_scripts':[
             'episoderenamer = episoderenamer:main'

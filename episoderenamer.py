@@ -15,19 +15,71 @@ import random
 import htmlentitydefs
 import md5
 
-from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
 from version import *
 
-
+SERIES_PARSER = [
+    re.compile("^.*?s *(?P<series>\d+) *e *(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE),
+    re.compile("^.*?(?P<series>\d+)x(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE),
+    re.compile("^(?:.*?\D|)(?P<series>\d{1,2})(?P<episode>\d{2})(?:\D.*|)\.(?P<extension>.*?)$", re.IGNORECASE),
+    ]
+    
 class Show:
-    def __init__(self, title="", rating=0):
+    def __init__(self, title=""):
         self.title = title
         self.attributes = {}
         self.episodes = {}
 
 
-def parse_imdb(page, options):
+def get_page(page_url):
+    try:
+        return urllib2.urlopen(page_url).read()
+    except urllib2.HTTPError, error:
+        print "An HTTP error occurred, HTTP code %s." % error.code
+        sys.exit()
+
+def search_show(name, site):
+    """Search Google for the page best matching the given show name."""
+    google_url = "http://www.google.com/search?q=site%%3A%s+%s" % (site["domain"], urllib.quote(name))
+
+    # Bastard Google...
+    request = urllib2.Request(google_url)
+    request.add_header("User-Agent", "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.8.1.4) Gecko/20070515 Firefox/2.0.0.4")
+    page = urllib2.urlopen(request).read()
+
+    from BeautifulSoup import BeautifulSoup
+    soup = BeautifulSoup(page)
+    result = soup.find("a", "l")["href"]
+
+    show_id = re.search(site["urlparser"], result).group(1)
+    return show_id
+
+def parse_imdbapi(show_id, options):
+    """Get the episodes from imdbapi."""
+    import simplejson 
+    results = simplejson.loads(urllib2.urlopen("http://imdbapi.poromenos.org?name=%s" % urllib.quote(show_id)).read())
+    if results == None or "shows" in results:
+        print "Show not found."
+        sys.exit()
+    show = Show(results.keys()[0])
+    for episode in results[show.title]["episodes"]:
+        show.episodes[(episode["season"], episode["number"])] = {"title": episode["name"]}
+    return show
+
+def parse_imdb(show_id, options):
     """Parse an IMDB page."""
+
+    site = {"url": "http://www.imdb.com/title/%s/epdate",
+            "domain": "imdb.com",
+            "urlparser": "imdb\.com\/title\/(.*?)\/",
+           }
+
+    if options.google:
+        show_id = search_show(show_id, site)
+        print "Found show ID \"%s\"..." % show_id
+
+    page = get_page(site["url"] % show_id)
+
+    from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
     # Remove &#160; (nbsp) entities.
     page = page.replace("&#160;", "")
     soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
@@ -51,8 +103,21 @@ def parse_imdb(page, options):
 
     return show
 
-def parse_epguides(page, options):
+def parse_epguides(show_id, options):
     """Parse an epguides page."""
+
+    site = {"url": "http://epguides.com/%s/",
+            "domain": "epguides.com",
+            "urlparser": "epguides.com\/(.*?)\/",
+           }
+
+    if options.google:
+        show_id = search_show(show_id, site)
+        print "Found show ID \"%s\"..." % show_id
+
+    page = get_page(site["url"] % show_id)
+
+    from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
     soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
     page = unicode(soup).replace("\n", "")
     show = Show()
@@ -66,67 +131,44 @@ def parse_epguides(page, options):
         show.episodes[(int(season), int(episode))] = {"title": name}
     return show
 
-SITES = [
-    {"url": "http://epguides.com/%s/",
-     "domain": "epguides.com",
-     "urlparser": "epguides.com\/(.*?)\/",
-     "parser": parse_epguides,
-     },
-    {"url": "http://www.imdb.com/title/%s/epdate",
-     "domain": "imdb.com",
-     "urlparser": "imdb\.com\/title\/(.*?)\/",
-     "parser": parse_imdb,
-    },
-        ]
+def parse_filename(show, filename, file_mask):
+    for parser in SERIES_PARSER:
+        matches = parser.search(filename)
+        try:
+            match_dict = matches.groupdict()
+            break
+        except AttributeError:
+            continue
+    else:
+        raise Exception("Filename not matched.")
 
-def search_show(name, site):
-    """Search Google for the page best matching the given show name."""
-    google_url = "http://www.google.com/search?q=site%%3A%s+%s" % (site["domain"], urllib.quote(name))
+    series = int(match_dict["series"])
+    episode = int(match_dict["episode"])
+    extension = match_dict["extension"]
 
-    # Bastard Google...
-    request = urllib2.Request(google_url)
-    request.add_header("User-Agent", "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.8.1.4) Gecko/20070515 Firefox/2.0.0.4")
-    page = urllib2.urlopen(request).read()
+    info_dictionary = {"show": show.title,
+                       "series_num": series,
+                       "episode_num": episode,
+                       "extension": extension}
 
-    soup = BeautifulSoup(page)
-    result = soup.find("a", "l")["href"]
-
-    show_id = re.search(site["urlparser"], result).group(1)
-    return show_id
+    try:
+        info_dictionary.update(show.episodes[(series, episode)])
+        new_filename = file_mask % info_dictionary
+    except KeyError:
+        print 'Episode name for "%s" not found.' % filename
+        raise Exception
+    new_filename = re.sub("[\\\/\:\*\"\?\<\>\|]", "", new_filename)
+    
+    return new_filename
 
 def rename_files(show, file_mask, preview=False, use_ap=False):
-    series_parser = [
-        re.compile("^.*?s *(?P<series>\d+) *e *(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE),
-        re.compile("^.*?(?P<series>\d+)x(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE),
-        re.compile("^(?:.*?\D|)(?P<series>\d{1,2})(?P<episode>\d{2})(?:\D.*|)\.(?P<extension>.*?)$", re.IGNORECASE),
-        ]
     for filename in os.listdir("."):
-        for parser in series_parser:
-            matches = parser.search(filename)
-            try:
-                match_dict = matches.groupdict()
-                break
-            except AttributeError:
-                continue
-        else:
-            continue
-
-        series = int(match_dict["series"])
-        episode = int(match_dict["episode"])
-        extension = match_dict["extension"]
-
-        info_dictionary = {"show": show.title,
-                           "series_num": series,
-                           "episode_num": episode,
-                           "extension": extension}
-
         try:
-            info_dictionary.update(show.episodes[(series, episode)])
-            new_filename = file_mask % info_dictionary
-        except KeyError:
-            print 'Episode name for  "%s" not found.' % filename
+            new_filename = parse_filename(show, filename, file_mask)
+        except:
+            print 'Episode name for "%s" not found.' % filename
             continue
-        new_filename = re.sub("[\\\/\:\*\"\?\<\>\|]", "", new_filename)
+
         print "Renaming \"%s\" to \"%s\"..." % (filename, new_filename.encode("ascii", "replace"))
         if not preview:
             if use_ap:
@@ -180,16 +222,26 @@ def rename_files(show, file_mask, preview=False, use_ap=False):
 
 def main():
     parser = optparse.OptionParser(usage="%prog [options] <show id from the URL>", version="Episode renamer %s\nThis program is released under the GNU GPL." % VERSION)
+    parser.add_option("-a",
+                      "--use-atomic-parsley",
+                      dest="use_atomic_parsley",
+                      action="store_true",
+                      help="use AtomicParsley to fill in the files' tags")
+    parser.add_option("-d",
+                      "--use-imdbapi",
+                      dest="use_imdbapi",
+                      action="store_true",
+                      help="use imdbapi.poromenos.org")
     parser.add_option("-e",
                       "--use-epguides",
                       dest="use_epguides",
                       action="store_true",
-                      help="use epguides.com instead of IMDB")
-    parser.add_option("-p",
-                      "--preview",
-                      dest="preview",
+                      help="use epguides.com")
+    parser.add_option("-i",
+                      "--use-imdb",
+                      dest="use_imdb",
                       action="store_true",
-                      help="don't actually rename anything")
+                      help="use imdb.com")
     parser.add_option("-m",
                       "--mask",
                       dest="mask",
@@ -198,16 +250,16 @@ def main():
                       action="store",
                       type="string",
                       help="the filename mask to use when renaming (default: \"%default\")")
+    parser.add_option("-p",
+                      "--preview",
+                      dest="preview",
+                      action="store_true",
+                      help="don't actually rename anything")
     parser.add_option("-g",
                       "--google",
                       dest="google",
                       action="store_true",
                       help="search Google for the episode list based on the show name")
-    parser.add_option("-a",
-                      "--use-atomic-parsley",
-                      dest="use_atomic_parsley",
-                      action="store_true",
-                      help="use AtomicParsley to fill in the files' tags")
     parser.set_defaults(preview=False)
     (options, arguments)=parser.parse_args()
 
@@ -215,25 +267,14 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if options.use_epguides:
-        site = SITES[0]
+    if options.use_imdb:
+        parser = parse_imdb
+    elif options.use_epguides:
+        parser = parse_epguides
     else:
-        site = SITES[1]
+        parser = parse_imdbapi
 
-    if options.google:
-        show_id = search_show(arguments[0], site)
-        print "Found show ID \"%s\"..." % show_id
-        page_url = site["url"] % show_id
-    else:
-        page_url = site["url"] % arguments[0]
-
-    try:
-        page = urllib2.urlopen(page_url).read()
-    except urllib2.HTTPError, error:
-        print "An HTTP error occurred, HTTP code %s." % error.code
-        sys.exit()
-
-    show = site["parser"](page, options)
+    show = parser(arguments[0], options)
     rename_files(show, options.mask, options.preview, options.use_atomic_parsley)
     print "Done."
 

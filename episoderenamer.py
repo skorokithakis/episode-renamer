@@ -56,7 +56,7 @@ def search_show(name, site):
 def parse_imdbapi(show_id, options):
     """Get the episodes from imdbapi."""
     import simplejson 
-    results = simplejson.loads(urllib2.urlopen("http://imdbapi.poromenos.org?name=%s" % urllib.quote(show_id)).read())
+    results = simplejson.loads(urllib2.urlopen("http://imdbapi.poromenos.org/json/?name=%s" % urllib.quote(show_id)).read())
     if results == None or "shows" in results:
         print "Show not found."
         sys.exit()

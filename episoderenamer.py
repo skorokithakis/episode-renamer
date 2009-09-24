@@ -159,12 +159,12 @@ def parse_filename(show, filename, file_mask):
         raise Exception
     new_filename = re.sub("[\\\/\:\*\"\?\<\>\|]", "", new_filename)
     
-    return new_filename
+    return new_filename, info_dictionary
 
 def rename_files(show, file_mask, preview=False, use_ap=False):
     for filename in os.listdir("."):
         try:
-            new_filename = parse_filename(show, filename, file_mask)
+            new_filename, info_dictionary = parse_filename(show, filename, file_mask)
         except:
             print 'Episode name for "%s" not found.' % filename
             continue
@@ -178,22 +178,22 @@ def rename_files(show, file_mask, preview=False, use_ap=False):
                 arguments = ["AtomicParsley",
                              filename,
                              "-o", temp_filename,
-                             "--TVShowName", show.title,
+                             "--TVShowName", info_dictionary["show"],
                              "--stik", "TV Show",
-                             "--TVSeasonNum", str(series),
-                             "--TVEpisodeNum", str(episode),
-                             "--TVEpisode", show.episodes[(series, episode)]["title"],
-                             "--title", show.episodes[(series, episode)]["title"]]
-                if "year" in show.episodes[(series, episode)]:
-                    arguments.extend(["--year", show.episodes[(series, episode)]["year"]])
+                             "--TVSeasonNum", str(info_dictionary["series_num"]),
+                             "--TVEpisodeNum", str(info_dictionary["episode_num"]),
+                             "--TVEpisode", show.episodes[(info_dictionary["series_num"], info_dictionary["episode_num"])]["title"],
+                             "--title", show.episodes[(info_dictionary["series_num"], info_dictionary["episode_num"])]["title"]]
+                if "year" in show.episodes[(info_dictionary["series_num"], info_dictionary["episode_num"])]:
+                    arguments.extend(["--year", show.episodes[(info_dictionary["series_num"], info_dictionary["episode_num"])]["year"]])
                 elif "year" in show.attributes:
                     arguments.extend(["--year", show.attributes["year"]])
 
                 artwork_file = None
-                if "artwork" in show.episodes[(series, episode)]:
+                if "artwork" in show.episodes[(info_dictionary["series_num"], info_dictionary["episode_num"])]:
                     artwork_filename = md5.md5(str(random.randint(10000, 100000))).hexdigest()
                     artwork_file = open(artwork_filename, "wb")
-                    artwork_file.write(show.episodes[(series, episode)]["artwork"])
+                    artwork_file.write(show.episodes[(info_dictionary["series_num"], info_dictionary["episode_num"])]["artwork"])
                     artwork_file.close()
                     arguments.extend(["--artwork", "REMOVE_ALL", "--artwork", artwork_filename])
                 elif "artwork" in show.attributes:

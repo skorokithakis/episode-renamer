@@ -205,15 +205,16 @@ def rename_files(show, file_mask, preview=False, use_ap=False):
 
                 proc = subprocess.Popen(tuple(arguments))
                 proc.wait()
-                os.remove(filename)
+                if proc.returncode == 0:
+                    os.remove(filename)
+
+                    try:
+                        os.rename(temp_filename, new_filename)
+                    except:
+                        print "There was an error while renaming the file."
 
                 if artwork_file:
                     os.remove(artwork_filename)
-
-                try:
-                    os.rename(temp_filename, new_filename)
-                except:
-                    print "There was an error while renaming the file."
             else:
                 try:
                     os.rename(filename, new_filename)

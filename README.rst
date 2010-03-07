@@ -25,7 +25,7 @@ Installation
 To install episode renamer you have multiple options:
 
 * With pip (preferred), do "pip install episode-renamer".
-* With setuptools, do easy_install episode-renamer.
+* With setuptools, do "easy_install episode-renamer".
 * To install the source, download it from http://github.com/skorokithakis/episode-renamer/ and do "python setup.py install".
 
 Usage

@@ -14,6 +14,7 @@ import subprocess
 import random
 import htmlentitydefs
 import md5
+from HTMLParser import HTMLParser
 
 from version import *
 
@@ -82,7 +83,8 @@ def parse_imdb(show_id, options):
     from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
     # Remove &#160; (nbsp) entities.
     page = page.replace("&#160;", "")
-    soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
+    page = HTMLParser().unescape(page)
+    soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.ALL_ENTITIES)
     matches = re.search("(?:&#x22;|)(.*?)(?:&#x22;|) *?\((.*?)\)", soup.title.string)
     title = matches.group(1)
     try:
@@ -118,7 +120,8 @@ def parse_epguides(show_id, options):
     page = get_page(site["url"] % show_id)
 
     from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
-    soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
+    page = HTMLParser().unescape(page)
+    soup = BeautifulSoup(page, convertEntities=BeautifulStoneSoup.ALL_ENTITIES)
     page = unicode(soup).replace("\n", "")
     show = Show()
     try:

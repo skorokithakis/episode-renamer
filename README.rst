@@ -22,10 +22,16 @@ Episode renamer supports various engines for getting episode names:
 Installation
 ------------
 
-To install episode renamer you have multiple options:
+To install episode renamer you need:
 
-* With pip (preferred), do "pip install episode-renamer".
-* With setuptools, do "easy_install episode-renamer".
+* Python 2.5 or later in the 2.x line (3.x not supported, earlier than 2.5 not tested).
+* BeautifulSoup.
+* simplejson.
+
+If you have the dependencies, you have multiple options of installation:
+
+* With pip (preferred), do "pip install episode-renamer" (this will also fetch the dependencies if you don't have them).
+* With setuptools, do "easy_install episode-renamer" (this will also fetch the dependencies).
 * To install the source, download it from http://github.com/skorokithakis/episode-renamer/ and do "python setup.py install".
 
 Usage

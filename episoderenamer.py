@@ -2,7 +2,7 @@
 
 # Episode renamer - Copyright 2008 Stavros Korokithakis
 # Released under the GNU GPL.
-# You can find the latest version at http://www.poromenos.org
+# You can find the latest version at http://github.com/skorokithakis/
 
 import urllib
 import urllib2
@@ -129,7 +129,7 @@ def parse_epguides(show_id, options):
     except AttributeError:
         print "Could not find show title, cannot continue."
         sys.exit()
-    episodes = re.findall("\d+. +(?P<season>\d+) *\- *(?P<episode>\d+).*?\d+ +[A-Za-z]+ +\d+ +<a target.*?>(?P<name>.*?)</a>", page)
+    episodes = re.findall("\d+. +(?P<season>\d+) *\- *(?P<episode>\d+).*?<a.*?>(?P<name>.*?)</a>", page)
     for season, episode, name in episodes:
         show.episodes[(int(season), int(episode))] = {"title": name}
     return show

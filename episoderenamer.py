@@ -9,6 +9,7 @@ import urllib2
 import optparse
 import re
 import os
+import os.path
 import sys
 import subprocess
 import random

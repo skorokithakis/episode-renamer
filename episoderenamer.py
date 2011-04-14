@@ -178,6 +178,9 @@ def rename_files(show, file_mask, preview=False, use_ap=False, base_dir=None):
             print 'Episode name for "%s" not found.' % filename
             continue
 
+        filename = os.path.join(base_dir, filename)
+        new_filename = os.path.join(base_dir, new_filename)
+
         print "Renaming \"%s\" to \"%s\"..." % (filename, new_filename.encode("ascii", "replace"))
         if not preview:
             if use_ap:
@@ -219,7 +222,7 @@ def rename_files(show, file_mask, preview=False, use_ap=False, base_dir=None):
 
                     try:
                         os.rename(temp_filename, new_filename)
-                    except:
+                    except OSError:
                         print "There was an error while renaming the file."
 
                 if artwork_file:
@@ -227,7 +230,7 @@ def rename_files(show, file_mask, preview=False, use_ap=False, base_dir=None):
             else:
                 try:
                     os.rename(filename, new_filename)
-                except:
+                except OSError:
                     print "There was an error while renaming the file."
 
 def main():

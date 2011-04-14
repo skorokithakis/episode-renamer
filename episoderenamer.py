@@ -168,8 +168,10 @@ def parse_filename(show, filename, file_mask):
     
     return new_filename, info_dictionary
 
-def rename_files(show, file_mask, preview=False, use_ap=False):
-    for filename in os.listdir("."):
+def rename_files(show, file_mask, preview=False, use_ap=False, base_dir=None):
+    if base_dir is None:
+        base_dir = os.getcwd()
+    for filename in os.listdir(base_dir):
         try:
             new_filename, info_dictionary = parse_filename(show, filename, file_mask)
         except:
@@ -229,7 +231,7 @@ def rename_files(show, file_mask, preview=False, use_ap=False):
                     print "There was an error while renaming the file."
 
 def main():
-    parser = optparse.OptionParser(usage="%prog [options] <show id from the URL>", version="Episode renamer %s\nThis program is released under the GNU GPL." % VERSION)
+    parser = optparse.OptionParser(usage="%prog [options] <show id from the URL> <show base directory>", version="Episode renamer %s\nThis program is released under the GNU GPL." % VERSION)
     parser.add_option("-a",
                       "--use-atomic-parsley",
                       dest="use_atomic_parsley",
@@ -271,7 +273,7 @@ def main():
     parser.set_defaults(preview=False)
     (options, arguments)=parser.parse_args()
 
-    if len(arguments) != 1:
+    if len(arguments) < 1:
         parser.print_help()
         sys.exit(1)
 
@@ -282,8 +284,14 @@ def main():
     else:
         parser = parse_imdbapi
 
-    show = parser(arguments[0], options)
-    rename_files(show, options.mask, options.preview, options.use_atomic_parsley)
+    show_id = arguments[0]
+    try:
+        base_dir = arguments[1]
+    except IndexError:
+        base_dir = None
+
+    show = parser(show_id, options)
+    rename_files(show, options.mask, options.preview, options.use_atomic_parsley, base_dir)
     print "Done."
 
 if __name__ == "__main__":

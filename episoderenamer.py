@@ -169,10 +169,14 @@ def parse_filename(show, filename, file_mask):
     
     return new_filename, info_dictionary
 
-def rename_files(show, file_mask, preview=False, use_ap=False, base_dir=None):
+def rename_files(show, file_mask, preview=False, use_ap=False, use_filenames=False, base_dir=None, filenames=None):
     if base_dir is None:
         base_dir = os.getcwd()
-    for filename in os.listdir(base_dir):
+    
+    if not use_filenames:
+        filenames = os.listdir(base_dir)
+    
+    for filename in filenames:
         try:
             new_filename, info_dictionary = parse_filename(show, filename, file_mask)
         except:
@@ -274,6 +278,11 @@ def main():
                       dest="google",
                       action="store_true",
                       help="search Google for the episode list based on the show name")
+    parser.add_option("-f",
+                      "--files",
+                      dest="use_filenames",
+                      action="store_true",
+                      help="specify filenames to match starting in current dir (do NOT specify a base dir)")
     parser.set_defaults(preview=False)
     (options, arguments)=parser.parse_args()
 
@@ -289,13 +298,22 @@ def main():
         parser = parse_imdbapi
 
     show_id = arguments[0]
-    try:
-        base_dir = arguments[1]
-    except IndexError:
+    
+    if options.use_filenames:
+        filenames = arguments[1:]
         base_dir = None
+        if filenames == []:
+            print "If -f or --files is specified, you must give a list of files."
+            sys.exit(1)
+    else:
+        try:
+            filenames = None
+            base_dir = arguments[1]
+        except IndexError:
+            base_dir = None
 
     show = parser(show_id, options)
-    rename_files(show, options.mask, options.preview, options.use_atomic_parsley, base_dir)
+    rename_files(show, options.mask, options.preview, options.use_atomic_parsley, options.use_filenames, base_dir, filenames)
     print "Done."
 
 if __name__ == "__main__":

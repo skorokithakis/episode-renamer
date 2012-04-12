@@ -62,9 +62,17 @@ def parse_imdbapi(show_id, options):
     except ImportError:
         import json
 
-    results = json.loads(urllib2.urlopen("http://imdbapi.poromenos.org/json/?name=%s" % urllib.quote(show_id)).read())
-    if results is None or "shows" in results:
+    url = 'http://imdbapi.poromenos.org/json/?name=%s' % urllib.quote(show_id)
+    if options.year:
+        url += '&year=%s' % urllib.quote(options.year)
+    results = json.loads(urllib2.urlopen(url).read())
+    if not results:
         print "Show not found."
+        sys.exit()
+    elif 'shows' in results:
+        print "Found multiple shows titled '%s'; specify year with -y or --year." % show_id
+        for show in results['shows']:
+            print '%s (%d)' % (show['name'], show['year'])
         sys.exit()
     show = Show(results.keys()[0])
     for episode in results[show.title]["episodes"]:
@@ -283,6 +291,11 @@ def main():
                       dest="use_filenames",
                       action="store_true",
                       help="specify filenames to match starting in current dir (do NOT specify a base dir)")
+    parser.add_option("-y",
+                      "--year",
+                      dest="year",
+                      action="store",
+                      help="Specify the first year the series ran")
     parser.set_defaults(preview=False)
     (options, arguments)=parser.parse_args()
 

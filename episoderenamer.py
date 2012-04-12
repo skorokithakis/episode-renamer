@@ -64,9 +64,9 @@ def parse_imdbapi(show_id, options):
 
     url = 'http://imdbapi.poromenos.org/json/?name=%s' % urllib.quote(show_id)
     if options.year:
-        url += '&year=%s' % options.year
+        url += '&year=%s' % urllib.quote(options.year)
     results = json.loads(urllib2.urlopen(url).read())
-    if results is None:
+    if not results:
         print "Show not found."
         sys.exit()
     elif 'shows' in results:

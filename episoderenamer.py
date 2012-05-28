@@ -17,6 +17,11 @@ import htmlentitydefs
 import md5
 from HTMLParser import HTMLParser
 
+try:
+    import simplejson as json
+except ImportError:
+    import json
+
 from version import *
 
 SERIES_PARSER = [
@@ -24,7 +29,7 @@ SERIES_PARSER = [
     re.compile("^.*?(?P<series>\d+)x(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE),
     re.compile("^(?:.*?\D|)(?P<series>\d{1,2})(?P<episode>\d{2})(?:\D.*|)\.(?P<extension>.*?)$", re.IGNORECASE),
     ]
-    
+
 class Show:
     def __init__(self, title=""):
         self.title = title
@@ -42,30 +47,20 @@ def get_page(page_url):
 def search_show(name, site):
     """Search Google for the page best matching the given show name."""
     google_url = "http://www.google.com/search?q=site%%3A%s+%s" % (site["domain"], urllib.quote(name))
-
-    # Bastard Google...
-    request = urllib2.Request(google_url)
-    request.add_header("User-Agent", "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.8.1.4) Gecko/20070515 Firefox/2.0.0.4")
-    page = urllib2.urlopen(request).read()
-
-    from BeautifulSoup import BeautifulSoup
-    soup = BeautifulSoup(page)
-    result = soup.find("a", "l")["href"]
-
-    show_id = re.search(site["urlparser"], result).group(1)
+    google_url = "http://ajax.googleapis.com/ajax/services/search/web?v=1.0&q=site%%3A%s+%s" % (
+        site["domain"], urllib.quote(name))
+    results = json.load(urllib.urlopen(google_url))
+    url = results['responseData']['results'][0]['url']
+    show_id = re.search(site["urlparser"], url).group(1)
     return show_id
 
 def parse_imdbapi(show_id, options):
     """Get the episodes from imdbapi."""
-    try:
-        import simplejson as json
-    except ImportError:
-        import json
-
     url = 'http://imdbapi.poromenos.org/json/?name=%s' % urllib.quote(show_id)
     if options.year:
         url += '&year=%s' % urllib.quote(options.year)
-    results = json.loads(urllib2.urlopen(url).read())
+    results = json.load(urllib2.urlopen(url))
+
     if not results:
         print "Show not found."
         sys.exit()
@@ -174,16 +169,16 @@ def parse_filename(show, filename, file_mask):
         print 'Episode name for "%s" not found.' % filename
         raise Exception
     new_filename = re.sub("[\\\/\:\*\"\?\<\>\|]", "", new_filename)
-    
+
     return new_filename, info_dictionary
 
 def rename_files(show, file_mask, preview=False, use_ap=False, use_filenames=False, base_dir=None, filenames=None):
     if base_dir is None:
         base_dir = os.getcwd()
-    
+
     if not use_filenames:
         filenames = os.listdir(base_dir)
-    
+
     for filename in filenames:
         try:
             new_filename, info_dictionary = parse_filename(show, filename, file_mask)
@@ -311,7 +306,7 @@ def main():
         parser = parse_imdbapi
 
     show_id = arguments[0]
-    
+
     if options.use_filenames:
         filenames = arguments[1:]
         base_dir = None

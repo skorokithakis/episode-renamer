@@ -1,5 +1,13 @@
 from setuptools import setup
 from version import VERSION
+
+requires = ['BeautifulSoup==3.2.0']
+
+try:
+    import json
+except ImportError:
+    requires.append('simplejson>=2.0.9')
+
 setup(
     name='episode-renamer',
     author='Stavros Korokithakis',
@@ -13,12 +21,10 @@ setup(
         'Programming Language :: Python',
         'Topic :: Multimedia :: Video',
     ],
-    install_requires=["BeautifulSoup==3.0.8.1",
-                      "simplejson>=2.0.9"],
+    install_requires=requires,
     entry_points = {
         'console_scripts':[
             'episoderenamer = episoderenamer:main'
         ]
     },
-    
 )

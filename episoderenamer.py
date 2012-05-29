@@ -22,7 +22,7 @@ try:
 except ImportError:
     import json
 
-from version import *
+__version__ = "0.4.5"
 
 SERIES_PARSER = [
     re.compile("^.*?s *(?P<series>\d+) *e *(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE),
@@ -242,7 +242,7 @@ def rename_files(show, file_mask, preview=False, use_ap=False, use_filenames=Fal
                     print "There was an error while renaming the file."
 
 def main():
-    parser = optparse.OptionParser(usage="%prog [options] <show id from the URL> <show base directory>", version="Episode renamer %s\nThis program is released under the GNU GPL." % VERSION)
+    parser = optparse.OptionParser(usage="%prog [options] <show id from the URL> <show base directory>", version="Episode renamer %s\nThis program is released under the GNU GPL." % __version__)
     parser.add_option("-a",
                       "--use-atomic-parsley",
                       dest="use_atomic_parsley",

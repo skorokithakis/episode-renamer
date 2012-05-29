@@ -1,5 +1,5 @@
+import re
 from setuptools import setup
-from version import VERSION
 
 requires = ['BeautifulSoup==3.2.0']
 
@@ -8,12 +8,15 @@ try:
 except ImportError:
     requires.append('simplejson>=2.0.9')
 
+version = re.search('__version__ = "([^\']+)"',
+                    open('episoderenamer.py').read()).group(1)
+
 setup(
     name='episode-renamer',
     author='Stavros Korokithakis',
     author_email='stavros@korokithakis.net',
-    version=VERSION,
-    py_modules=['episoderenamer', 'version'],
+    version=version,
+    py_modules=['episoderenamer'],
     description='TV episode renamer',
     long_description="TV episode renamer SCRIPT",
     classifiers=[

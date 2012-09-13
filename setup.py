@@ -8,7 +8,7 @@ try:
 except ImportError:
     requires.append('simplejson>=2.0.9')
 
-version = re.search('__version__ = "([^\']+)"',
+version = re.search('__version__ = "([^\']+?)"',
                     open('episoderenamer.py').read()).group(1)
 
 setup(

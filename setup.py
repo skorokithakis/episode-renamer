@@ -1,7 +1,7 @@
 import re
 from setuptools import setup
 
-requires = ['BeautifulSoup==3.2.0']
+requires = []
 
 try:
     import json

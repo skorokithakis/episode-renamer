@@ -22,7 +22,7 @@ try:
 except ImportError:
     import json
 
-__version__ = "0.4.5"
+__version__ = "0.4.6"
 
 SERIES_PARSER = [
     re.compile("^.*?s *(?P<series>\d+) *e *(?P<episode>\d+).*\.(?P<extension>.*?)$", re.IGNORECASE),
